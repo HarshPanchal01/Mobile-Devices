@@ -87,10 +87,6 @@ class _ReplyPageState extends State<ReplyPage> {
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _submitReply,
-        child: const Icon(Icons.send),
-      ),
     );
   }
 }

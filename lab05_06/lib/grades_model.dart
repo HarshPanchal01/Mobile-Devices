@@ -37,9 +37,13 @@ class GradesModel {
   }
 
   // Inserts a new grade into the database.
-  Future<int> insertGrade(Grade grade) async {
+  Future<void> insertGrade(Grade grade) async {
     final db = await database;
-    return await db.insert('grades', grade.toMap());
+    await db.insert(
+      'grades',
+      grade.toMap(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
   }
 
   // Updates an existing grade in the database.
@@ -53,7 +57,7 @@ class GradesModel {
     );
   }
 
-  // Deletes a grade from the database by its ID.
+  // Deletes a grade from the database by ID.
   Future<void> deleteGradeById(int id) async {
     final db = await database;
     await db.delete(

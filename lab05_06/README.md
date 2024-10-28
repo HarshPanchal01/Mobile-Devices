@@ -1,16 +1,19 @@
-# lab05_06
+# Lab 5/6 Extension
 
-A new Flutter project.
+## Features Added
 
-## Getting Started
+1. **Export Grades to CSV:**
+   - Export the current list of grades to a CSV file.
+   - This will be stored in the downloads folder of the emulator phone.
 
-This project is a starting point for a Flutter application.
+2. **Search Grades by Student ID:**
+   - Search for grades by entering a student ID.
 
-A few resources to get you started if this is your first Flutter project:
+## How to Use
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+1. **Export Grades to CSV:**
+   - Click the download icon beside the import icon in the app bar to export the current list of grades to a CSV file. (Downward Arrow).
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+2. **Search Grades by Student ID:**
+   - Enter a student ID in the search bar then click search icon to filter the grades.
+   - To erase the search just empty the search bar then click search icon.

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'grade.dart';
+import 'grades_model.dart';
 
 // The form screen for adding or editing a grade.
 class GradeForm extends StatelessWidget {
@@ -11,6 +12,7 @@ class GradeForm extends StatelessWidget {
   Widget build(BuildContext context) {
     final TextEditingController sidController = TextEditingController(text: grade?.sid);
     final TextEditingController gradeController = TextEditingController(text: grade?.grade);
+    final GradesModel _gradesModel = GradesModel();
 
     return Scaffold(
       appBar: AppBar(
@@ -33,13 +35,22 @@ class GradeForm extends StatelessWidget {
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
+        onPressed: () async {
           final newGrade = Grade(
-            id: grade?.id,
             sid: sidController.text,
             grade: gradeController.text,
           );
-          Navigator.pop(context, newGrade);
+
+          if (grade == null) {
+            // Add new grade
+            await _gradesModel.insertGrade(newGrade);
+          } else {
+            // Update existing grade
+            newGrade.id = grade!.id;
+            await _gradesModel.updateGrade(newGrade);
+          }
+
+          Navigator.pop(context, true);
         },
         child: const Icon(Icons.save),
       ),

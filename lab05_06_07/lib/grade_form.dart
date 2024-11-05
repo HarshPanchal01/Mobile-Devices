@@ -2,11 +2,10 @@ import 'package:flutter/material.dart';
 import 'grade.dart';
 import 'grades_model.dart';
 
-// The form screen for adding or editing a grade.
 class GradeForm extends StatelessWidget {
   final Grade? grade;
 
-  const GradeForm({super.key, this.grade});
+  const GradeForm({Key? key, this.grade}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -39,15 +38,16 @@ class GradeForm extends StatelessWidget {
           final newGrade = Grade(
             sid: sidController.text,
             grade: gradeController.text,
+            id: grade?.id ?? '',
+            reference: grade?.reference,
           );
 
           if (grade == null) {
             // Add new grade
-            await _gradesModel.insertGrade(newGrade);
+            await _gradesModel.addGrade(newGrade);
           } else {
             // Update existing grade
-            newGrade.id = grade!.id;
-            await _gradesModel.updateGrade(newGrade);
+            _gradesModel.updateGrade(newGrade);
           }
 
           Navigator.pop(context, true);

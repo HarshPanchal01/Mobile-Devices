@@ -1,16 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'grade.dart';
 import 'grades_model.dart';
 import 'grade_form.dart';
-import 'package:flutter/services.dart';
-import 'dart:convert';
 import 'package:csv/csv.dart';
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'package:permission_handler/permission_handler.dart';
+import 'package:path_provider/path_provider.dart';
+import 'dart:convert';
 
-// The screen that displays a list of grades.
 class ListGrades extends StatefulWidget {
   const ListGrades({Key? key}) : super(key: key);
 
@@ -20,9 +19,19 @@ class ListGrades extends StatefulWidget {
 
 class _ListGradesState extends State<ListGrades> {
   final GradesModel _gradesModel = GradesModel();
-  List<Grade> _grades = [];
-  int? _selectedIndex;
   TextEditingController _searchController = TextEditingController();
+  int? _selectedIndex;
+  List<Grade> _grades = [];
+
+  // Navigates to the GradeForm to add a new grade.
+  void _addGrade() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (BuildContext context) => GradeForm()),
+    ).then((_) {
+      _loadGrades();
+    });
+  }
 
   @override
   void initState() {
@@ -30,46 +39,25 @@ class _ListGradesState extends State<ListGrades> {
     _loadGrades();
   }
 
-  // Loads grades from the database and updates the state.
-  Future<void> _loadGrades() async {
-    final grades = await _gradesModel.getAllGrades();
+  // Loads grades from the GradesModel.
+  void _loadGrades() async {
+    final grades = await _gradesModel.getGrades();
     setState(() {
       _grades = grades;
     });
   }
 
-  // Navigates to the GradeForm to add a new grade.
-  void _addGrade() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (BuildContext context) => GradeForm()),
-    ).then((result) {
-      if (result == true) {
-        _loadGrades();
-      }
-    });
-  }
-
   // Deletes a grade from the list.
-  void _deleteGrade(int index) async {
-    if (_grades[index].id != null) {
-      await _gradesModel.deleteGradeById(_grades[index].id!);
-    }
-    setState(() {
-      _grades.removeAt(index);
-    });
+  void _deleteGrade(Grade grade) async {
+    _gradesModel.deleteGrade(grade);
   }
 
   // Edits a grade in the list.
-  void _editGrade(int index) {
+  void _editGrade(Grade grade) {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (BuildContext context) => GradeForm(grade: _grades[index])),
-    ).then((result) {
-      if (result == true) {
-        _loadGrades();
-      }
-    });
+      MaterialPageRoute(builder: (BuildContext context) => GradeForm(grade: grade)),
+    );
   }
 
   // Sorts the grades based on the selected criteria.
@@ -233,7 +221,7 @@ class _ListGradesState extends State<ListGrades> {
             String sid = row[0].toString();
             String grade = row[1].toString();
             Grade newGrade = Grade(sid: sid, grade: grade);
-            await _gradesModel.insertGrade(newGrade);
+            await _gradesModel.addGrade(newGrade);
           }
         }
         _loadGrades();
@@ -249,35 +237,24 @@ class _ListGradesState extends State<ListGrades> {
   // Exports grades to a CSV file.
   void _exportCSV() async {
     try {
-      // Request storage permission first
-      var status = await Permission.storage.request();
-      if (!status.isGranted) {
-        // Also request manage external storage permission for Android 11+
-        status = await Permission.manageExternalStorage.request();
+      List<List<dynamic>> rows = [];
+      rows.add(["sid", "grade"]);
+      for (var grade in _grades) {
+        List<dynamic> row = [];
+        row.add(grade.sid);
+        row.add(grade.grade);
+        rows.add(row);
       }
 
-      if (status.isGranted) {
-        List<List<dynamic>> rows = [];
-        rows.add(["sid", "grade"]);
-        for (var grade in _grades) {
-          List<dynamic> row = [];
-          row.add(grade.sid);
-          row.add(grade.grade);
-          rows.add(row);
-        }
-        String csv = const ListToCsvConverter().convert(rows);
+      String csv = const ListToCsvConverter().convert(rows);
+      final directory = await getApplicationDocumentsDirectory();
+      final path = "${directory.path}/grades_export.csv";
+      final file = File(path);
+      await file.writeAsString(csv);
 
-        final file = File('/sdcard/Download/grades_export.csv');
-        await file.writeAsString(csv);
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Grades exported to Download folder')),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Storage permission is required to export')),
-        );
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Grades exported to $path')),
+      );
     } catch (e) {
       print('Error exporting CSV file: $e');
       ScaffoldMessenger.of(context).showSnackBar(
@@ -348,37 +325,47 @@ class _ListGradesState extends State<ListGrades> {
             ),
           ),
           Expanded(
-            child: ListView.builder(
-              itemCount: _grades.length,
-              itemBuilder: (context, index) {
-                return Dismissible(
-                  key: Key(_grades[index].id.toString()),
-                  onDismissed: (direction) {
-                    _deleteGrade(index);
-                  },
-                  background: Container(color: Colors.red),
-                  child: GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        _selectedIndex = index;
-                      });
-                    },
-                    onLongPress: () {
-                      _editGrade(index);
-                    },
-                    child: Container(
-                      color: _selectedIndex == index ? const Color.fromARGB(255, 227, 185, 255) : null,
-                      child: ListTile(
-                        title: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(_grades[index].sid),
-                            Text(_grades[index].grade),
-                          ],
+            child: StreamBuilder<QuerySnapshot>(
+              stream: _gradesModel.getStream(),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) {
+                  return Center(child: CircularProgressIndicator());
+                }
+                final data = snapshot.requireData;
+                return ListView.builder(
+                  itemCount: data.size,
+                  itemBuilder: (context, index) {
+                    final grade = Grade.fromSnapshot(data.docs[index]);
+                    return Dismissible(
+                      key: Key(grade.id),
+                      onDismissed: (direction) {
+                        _deleteGrade(grade);
+                      },
+                      background: Container(color: Colors.red),
+                      child: GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _selectedIndex = index;
+                          });
+                        },
+                        onLongPress: () {
+                          _editGrade(grade);
+                        },
+                        child: Container(
+                          color: _selectedIndex == index ? const Color.fromARGB(255, 227, 185, 255) : null,
+                          child: ListTile(
+                            title: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(grade.sid),
+                                Text(grade.grade),
+                              ],
+                            ),
+                          ),
                         ),
                       ),
-                    ),
-                  ),
+                    );
+                  },
                 );
               },
             ),
